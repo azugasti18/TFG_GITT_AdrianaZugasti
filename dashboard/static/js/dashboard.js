@@ -11,7 +11,6 @@
  *   GET /api/screener   → M&A Screener con filtros
  *   GET /api/empresa/TK → Company Deep Dive
  *   POST /api/simular   → Simulador (envía JSON en el body)
- *   GET /api/model      → Model Performance
  */
 
 "use strict";
@@ -402,14 +401,6 @@ function renderizarSimulacion(data) {
   document.getElementById("sim-derivadas").innerHTML = Object.entries(data.variables_derivadas)
     .map(([k, v]) => `<div><strong>${etiq[k] || k}:</strong> ${v}</div>`).join("");
 }
-
-
-// ═══════════════════════════════════════════
-// SECCIÓN 5: MODEL PERFORMANCE
-// GET /api/model
-// ═══════════════════════════════════════════
-
-
 
 // ═══════════════════════════════════════════
 // GENERACIÓN DE INFORMES HTML
