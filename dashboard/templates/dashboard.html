@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>M&A Target Screening. TFG Dashboard</title>
+
+  <!-- Plotly para gráficos interactivos -->
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+
+  <style>
+    :root {
+      --azul-oscuro:  #1a2535;
+      --azul-medio:   #243447;
+      --acento:       #2b6cb0;
+      --gris-fondo:   #edf0f4;
+      --gris-card:    #ffffff;
+      --texto-claro:  #e8ecf0;
+      --texto-oscuro: #1a202c;
+      --texto-medio:  #4a5568;
+      --borde:        #c8d0dc;
+      --borde-tabla:  #e2e8f0;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: var(--gris-fondo);
+      color: var(--texto-oscuro);
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      grid-template-rows: auto 1fr;
+      grid-template-areas: "header header" "sidebar main";
+      min-height: 100vh;
+      font-size: 14px;
+    }
+
+    header {
+      grid-area: header;
+      background: var(--azul-oscuro);
+      color: var(--texto-claro);
+      padding: 11px 28px;
+      display: flex;
+      align-items: center;
+      border-bottom: 2px solid var(--acento);
+    }
+    header h1 { font-size: 1rem; font-weight: 600; letter-spacing: 0.3px; }
+    header span.subtitulo { font-size: 0.72rem; color: #8fa3b8; margin-left: 16px; font-style: italic; }
+
+    nav { grid-area: sidebar; background: var(--azul-oscuro); padding: 20px 0; }
+    nav .nav-seccion {
+      color: #5a7a9a; font-size: 0.64rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1.5px; padding: 14px 18px 5px;
+    }
+    nav a {
+      display: block; color: #8fa3b8; text-decoration: none;
+      padding: 9px 18px; font-size: 0.80rem; cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      border-left: 2px solid transparent;
+    }
+    nav a:hover { background: var(--azul-medio); color: #cdd8e3; }
+    nav a.activo { background: var(--azul-medio); color: #e8ecf0; border-left-color: #5a8fc5; }
+
+    main { grid-area: main; padding: 26px 30px; overflow-y: auto; }
+
+    .seccion { display: none; }
+    .seccion.activa { display: block; }
+
+    .seccion-titulo {
+      font-size: 1.2rem; font-weight: 600; color: var(--texto-oscuro);
+      margin-bottom: 4px;
+    }
+    .seccion-subtitulo {
+      font-size: 0.76rem; color: var(--texto-medio); font-style: italic;
+      margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--borde);
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px; margin-bottom: 20px;
+    }
+    .kpi-card {
+      background: var(--gris-card);
+      padding: 15px 17px;
+      border: 1px solid var(--borde);
+      border-top: 3px solid #718096;
+    }
+    .kpi-card.acento { border-top-color: var(--acento); }
+    .kpi-card.verde  { border-top-color: var(--acento); }
+    .kpi-card.amarillo { border-top-color: #5a6a7a; }
+    .kpi-card .kpi-valor { font-size: 1.5rem; font-weight: 700; color: var(--texto-oscuro); line-height: 1.2; }
+    .kpi-card .kpi-label { font-size: 0.67rem; color: var(--texto-medio); text-transform: uppercase; letter-spacing: 0.6px; margin-top: 5px; }
+
+    .dos-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px; }
+    @media (max-width: 900px) { .dos-col { grid-template-columns: 1fr; } }
+
+    .card { background: var(--gris-card); padding: 17px 19px; border: 1px solid var(--borde); }
+    .card h3 { font-size: 0.70rem; color: var(--texto-medio); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 12px; font-weight: 600; }
+
+    .tabla-container { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.81rem; }
+    thead th {
+      background: var(--azul-oscuro); color: var(--texto-claro);
+      padding: 8px 11px; text-align: left; font-weight: 600;
+      font-size: 0.73rem; letter-spacing: 0.2px;
+      cursor: pointer; user-select: none;
+    }
+    thead th:hover { background: var(--azul-medio); }
+    tbody tr:nth-child(even) { background: #f5f7fa; }
+    tbody tr:hover { background: #eaeff6; }
+    tbody td { padding: 7px 11px; border-bottom: 1px solid var(--borde-tabla); }
+
+    .badge {
+      display: inline-block; padding: 2px 7px;
+      font-size: 0.73rem; font-weight: 600; border: 1px solid;
+    }
+    .badge.fuerte   { background: #ebf4ff; color: #2b6cb0; border-color: #bee3f8; }
+    .badge.moderada { background: #f0f4f8; color: #4a5568; border-color: #cbd5e0; }
+    .badge.debil    { background: #f7fafc; color: #718096; border-color: #e2e8f0; }
+    .badge.green    { background: #ebf4ff; color: #2b6cb0; border-color: #bee3f8; }
+    .badge.yellow   { background: #f0f4f8; color: #4a5568; border-color: #cbd5e0; }
+    .badge.red      { background: #f7fafc; color: #718096; border-color: #e2e8f0; }
+
+    .filtros {
+      display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;
+      background: white; padding: 13px 15px; border: 1px solid var(--borde);
+    }
+    .filtros label {
+      display: flex; flex-direction: column;
+      font-size: 0.67rem; color: var(--texto-medio);
+      text-transform: uppercase; letter-spacing: 0.4px; gap: 4px;
+    }
+    .filtros select, .filtros input {
+      padding: 5px 8px; border: 1px solid var(--borde);
+      border-radius: 0; font-size: 0.80rem; min-width: 115px;
+    }
+
+    .btn {
+      padding: 6px 14px; border: 1px solid transparent;
+      border-radius: 0; cursor: pointer;
+      font-size: 0.78rem; font-weight: 600;
+      transition: opacity 0.15s; letter-spacing: 0.2px;
+    }
+    .btn:hover { opacity: 0.82; }
+    .btn:disabled { opacity: 0.35; cursor: default; }
+    .btn-primary { background: var(--acento); color: white; border-color: var(--acento); }
+    .btn-success { background: #2d3748; color: white; border-color: #2d3748; }
+    .btn-warning { background: #553c1a; color: white; }
+
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 18px; }
+    .form-grupo { display: flex; flex-direction: column; gap: 4px; }
+    .form-grupo label { font-size: 0.75rem; color: var(--texto-medio); font-weight: 600; }
+    .form-grupo input { padding: 7px 10px; border: 1px solid var(--borde); border-radius: 0; font-size: 0.85rem; }
+    .form-grupo input:focus { outline: none; border-color: var(--acento); }
+
+    .gauge-container { text-align: center; padding: 14px; }
+    .gauge-valor { font-size: 2.6rem; font-weight: 700; }
+    .gauge-label { font-size: 0.85rem; color: var(--texto-medio); margin-top: 4px; }
+
+    .modelo-ganador td { background: #ebf4ff !important; font-weight: 600; }
+
+    .perfil-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 18px; }
+    .perfil-item { background: #f5f7fa; padding: 10px 12px; border-left: 2px solid var(--acento); }
+    .perfil-item .pval { font-size: 1.15rem; font-weight: 700; color: var(--texto-oscuro); }
+    .perfil-item .plabel { font-size: 0.68rem; color: var(--texto-medio); margin-top: 2px; }
+
+    .footer-info { font-size: 0.68rem; color: #a0aab4; text-align: right; margin-top: 28px; padding-top: 10px; border-top: 1px solid var(--borde); }
+  </style>
+</head>
+<body>
+
+<!--
+     HEADER
+-->
+<header>
+  <div>
+    <h1>M&A Target Screening</h1>
+    <span class="subtitulo">TFG · ICAI · Machine Learning · Compustat + PitchBook</span>
+  </div>
+</header>
+
+<!--
+     SIDEBAR NAV
+     Equivalente al <nav> semántico de PAT.
+     Al hacer clic llama a mostrarSeccion() en JS.
+-->
+<nav>
+  <div class="nav-seccion">Navegación</div>
+  <a onclick="mostrarSeccion('summary')"   class="activo" id="nav-summary">Executive Summary</a>
+  <a onclick="mostrarSeccion('screener')"             id="nav-screener">M&A Screener</a>
+  <a onclick="mostrarSeccion('deepdive')"             id="nav-deepdive">Company Deep Dive</a>
+  <a onclick="mostrarSeccion('simulator')"            id="nav-simulator">Simulador</a>
+</nav>
+
+<!--
+     CONTENIDO PRINCIPAL
+-->
+<main>
+
+  <!--
+       SECCIÓN 1: EXECUTIVE SUMMARY
+-->
+  <section id="summary" class="seccion activa">
+    <h2 class="seccion-titulo">Executive Summary</h2>
+    <p class="seccion-subtitulo">Resumen del modelo de predicción M&A</p>
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid" id="kpi-cards">
+      <div class="kpi-card">
+        <div class="kpi-valor" id="kpi-empresas">—</div>
+        <div class="kpi-label">Empresas analizadas</div>
+      </div>
+      <div class="kpi-card amarillo">
+        <div class="kpi-valor" id="kpi-score-max">—</div>
+        <div class="kpi-label">Score máximo del universo</div>
+      </div>
+      <div class="kpi-card verde">
+        <div class="kpi-valor" id="kpi-señal-fuerte">—</div>
+        <div class="kpi-label">Señal fuerte (&gt;35%)</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-valor" id="kpi-modelo">—</div>
+        <div class="kpi-label">Modelo utilizado</div>
+      </div>
+      <div class="kpi-card amarillo">
+        <div class="kpi-valor" id="kpi-auc">—</div>
+        <div class="kpi-label">AUC-ROC</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-valor" id="kpi-precision">—</div>
+        <div class="kpi-label">Precisión del modelo</div>
+      </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="dos-col">
+      <div class="card">
+        <h3>Distribución de probabilidades</h3>
+        <div id="grafico-dist-summary"></div>
+      </div>
+      <div class="card">
+        <h3>Probabilidad media por sector</h3>
+        <div id="grafico-sectores-summary"></div>
+      </div>
+    </div>
+
+    <!-- Top 10 -->
+    <div class="card">
+      <h3>Top 10. Mayor probabilidad de adquisición</h3>
+      <div class="tabla-container">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>Empresa</th><th>Ticker</th>
+              <th>Sector</th><th>Año</th><th>Market Cap (M$)</th>
+              <th>Probabilidad</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-top10"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="footer-info" id="footer-fecha"></div>
+  </section>
+
+
+  <!--
+       SECCIÓN 2: M&A SCREENER
+-->
+  <section id="screener" class="seccion">
+    <h2 class="seccion-titulo">M&A Screener</h2>
+    <p class="seccion-subtitulo">Ranking completo con filtros dinámicos</p>
+
+    <!-- Filtros (inputs tipo @RequestParam) -->
+    <div class="filtros">
+      <label>
+        Sector
+        <select id="filtro-sector" onchange="aplicarFiltros()">
+          <option value="">Todos</option>
+        </select>
+      </label>
+      <label>
+        Año fiscal
+        <select id="filtro-año" onchange="aplicarFiltros()">
+          <option value="">Todos</option>
+        </select>
+      </label>
+      <label>
+        Prob. mínima
+        <input type="number" id="filtro-prob" min="0" max="1" step="0.05"
+               value="0" onchange="aplicarFiltros()">
+      </label>
+      <label style="justify-content: flex-end;">
+        <span>&nbsp;</span>
+        <button class="btn btn-primary" onclick="aplicarFiltros()">Filtrar</button>
+      </label>
+      <label style="justify-content: flex-end;">
+        <span>&nbsp;</span>
+        <span id="total-resultados" style="font-size:0.8rem; color:#7f8c8d; align-self:center;"></span>
+      </label>
+      <label style="justify-content: flex-end;">
+        <span>&nbsp;</span>
+        <div style="display:flex; gap:6px; align-items:center;">
+          <button class="btn btn-primary" id="btn-prev" onclick="cambiarPagina(-1)" disabled>Anterior</button>
+          <button class="btn btn-primary" id="btn-next" onclick="cambiarPagina(1)">Siguiente</button>
+        </div>
+      </label>
+    </div>
+
+    <!-- Tabla principal -->
+    <div class="card">
+      <div class="tabla-container">
+        <table id="tabla-screener">
+          <thead>
+            <tr>
+              <th onclick="ordenarTabla(0)">Empresa ↕</th>
+              <th onclick="ordenarTabla(1)">Ticker ↕</th>
+              <th onclick="ordenarTabla(2)">Sector ↕</th>
+              <th onclick="ordenarTabla(3)">Market Cap ↕</th>
+              <th onclick="ordenarTabla(4)">EV/EBITDA ↕</th>
+              <th onclick="ordenarTabla(5)">EBITDA Margin ↕</th>
+              <th onclick="ordenarTabla(6)">Leverage ↕</th>
+              <th onclick="ordenarTabla(7)">Año reciente ↕</th>
+              <th onclick="ordenarTabla(8)">Score reciente ↕</th>
+              <th onclick="ordenarTabla(9)">Año más atractivo ↕</th>
+              <th onclick="ordenarTabla(10)">Score atractivo ↕</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-screener-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+
+  <!--
+       SECCIÓN 3: COMPANY DEEP DIVE
+-->
+  <section id="deepdive" class="seccion">
+    <h2 class="seccion-titulo">Company Deep Dive</h2>
+    <p class="seccion-subtitulo">Análisis detallado por empresa</p>
+
+    <!-- Selector de empresa (equivale a @PathVariable cuando se busca) -->
+    <div style="display:flex; gap:12px; margin-bottom:20px; align-items:center;">
+      <select id="selector-empresa" style="flex:1; padding:10px; border:1px solid var(--borde); border-radius:6px; font-size:0.9rem;">
+        <option value="">— Selecciona una empresa —</option>
+      </select>
+      <button class="btn btn-primary" onclick="cargarEmpresa()">Analizar</button>
+    </div>
+
+    <!-- Resultado (se muestra tras seleccionar empresa) -->
+    <div id="resultado-empresa" style="display:none;">
+
+      <!-- Info + Predicción -->
+      <div class="dos-col" style="margin-bottom:20px;">
+        <div class="card">
+          <h3>Información general</h3>
+          <div id="info-empresa" style="font-size:0.9rem; line-height:2;"></div>
+        </div>
+        <div class="card" style="text-align:center;">
+          <h3>Resultado del modelo</h3>
+          <div class="gauge-container">
+            <div class="gauge-valor" id="prob-valor">—</div>
+            <div class="gauge-label" id="prob-clasif">—</div>
+            <div id="grafico-gauge"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Perfil financiero -->
+      <div class="card" style="margin-bottom:20px;">
+        <h3>Perfil financiero</h3>
+        <div class="perfil-grid" id="perfil-financiero"></div>
+      </div>
+
+      <!-- Evolución histórica del score -->
+      <div class="card" style="margin-bottom:20px;">
+        <h3>Evolución del score por año fiscal</h3>
+        <div id="grafico-evolucion"></div>
+        <p id="evolucion-nota" style="font-size:0.75rem;color:#7f8c8d;margin-top:10px;"></p>
+      </div>
+
+      <!-- Gráficos comparativos -->
+      <div class="dos-col">
+        <div class="card">
+          <h3>Comparación vs mediana del sector</h3>
+          <div id="grafico-radar"></div>
+        </div>
+        <div class="card">
+          <h3>Variables más relevantes (Feature Importance)</h3>
+          <div id="grafico-importance"></div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px; text-align:right;">
+        <button class="btn btn-success" onclick="generarInformeEmpresa()">
+          Generar informe
+        </button>
+      </div>
+    </div>
+  </section>
+
+
+  <!--
+       SECCIÓN 4: SIMULADOR
+-->
+  <section id="simulator" class="seccion">
+    <h2 class="seccion-titulo">Simulador de Target Screening</h2>
+    <p class="seccion-subtitulo">Introduce datos financieros manualmente para obtener un score de adquisición</p>
+
+    <div class="card" style="margin-bottom:20px;">
+      <h3>Datos financieros (inputs)</h3>
+      <!-- Formulario. patrón PAT Tema 3: inputs con nombre y tipo -->
+      <div class="form-grid">
+        <div class="form-grupo">
+          <label>Sales (M$)</label>
+          <input type="number" id="sim-sale" placeholder="ej. 1200" step="0.1">
+        </div>
+        <div class="form-grupo">
+          <label>EBITDA (M$)</label>
+          <input type="number" id="sim-ebitda" placeholder="ej. 240" step="0.1">
+        </div>
+        <div class="form-grupo">
+          <label>Total Assets (M$)</label>
+          <input type="number" id="sim-at" placeholder="ej. 3500" step="0.1">
+        </div>
+        <div class="form-grupo">
+          <label>Cash & Equivalents (M$)</label>
+          <input type="number" id="sim-che" placeholder="ej. 400" step="0.1">
+        </div>
+        <div class="form-grupo">
+          <label>Total Debt (M$)</label>
+          <input type="number" id="sim-debt" placeholder="ej. 800" step="0.1">
+        </div>
+        <div class="form-grupo">
+          <label>Market Cap (M$)</label>
+          <input type="number" id="sim-mcap" placeholder="ej. 2000" step="0.1">
+        </div>
+        <div class="form-grupo">
+          <label>Capex (M$)</label>
+          <input type="number" id="sim-capex" placeholder="ej. 120" step="0.1">
+        </div>
+        <div class="form-grupo">
+          <label>Shares Outstanding (M)</label>
+          <input type="number" id="sim-csho" placeholder="ej. 200" step="0.1">
+        </div>
+        <div class="form-grupo">
+          <label>Share Price ($)</label>
+          <input type="number" id="sim-price" placeholder="ej. 10" step="0.01">
+        </div>
+      </div>
+
+      <button class="btn btn-primary" onclick="calcularSimulacion()">
+        Calcular
+      </button>
+    </div>
+
+    <!-- Resultado del simulador -->
+    <div id="resultado-simulacion" style="display:none;">
+      <div class="dos-col">
+        <div class="card" style="text-align:center;">
+          <h3>Resultado</h3>
+          <div class="gauge-container">
+            <div class="gauge-valor" id="sim-prob-valor">—</div>
+            <div class="gauge-label" id="sim-clasif">—</div>
+            <div id="sim-gauge"></div>
+          </div>
+          <p style="font-size:0.82rem; color:#7f8c8d; margin-top:8px;">
+            Percentil: <strong id="sim-percentil">—</strong> del universo
+          </p>
+        </div>
+        <div class="card">
+          <h3>Variables derivadas calculadas</h3>
+          <div id="sim-derivadas" style="font-size:0.88rem; line-height:2.2;"></div>
+        </div>
+      </div>
+      <div style="margin-top:16px; text-align:right;">
+        <button class="btn btn-success" onclick="generarInformeSimulacion()">
+          Generar informe
+        </button>
+      </div>
+    </div>
+  </section>
+
+</main><!-- fin main -->
+
+
+<!--
+     JAVASCRIPT
+     Patrón PAT Tema 5: fetch() al API REST propio
+     Equivale al código JS que hacía peticiones a /api/ordenes, etc.
+-->
+<script src="/static/js/dashboard.js"></script>
+
+</body>
+</html>

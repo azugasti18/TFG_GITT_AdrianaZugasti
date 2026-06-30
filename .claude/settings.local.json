@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install *)",
+      "Bash(playwright install *)",
+      "Bash(jupyter nbconvert *)",
+      "Bash(tlmgr install *)",
+      "Bash(tlmgr option *)"
+    ]
+  }
+}
